@@ -13,6 +13,7 @@ wikipedia==1.4.0
 torch # ==1.9.0+cu111
 transformers==4.30.2
 einops==0.6.1
-sentence_transformers
+huggingface_hub==0.25.2
+sentence_transformers==2.2.2
 matplotlib
 # gdown # for downloading files from google drive (webshop)
