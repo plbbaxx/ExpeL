@@ -159,13 +159,18 @@ def main(cfg : DictConfig) -> None:
         # syncing fold
         if k == starting_fold or start_processing:
             start_processing = True
+            training_ids = set(range(num_training_tasks)) - set(eval_idxs)
+            # Apply the same out-of-fold boundary to recalled experiences in
+            # every setting, including experience-only runs with no rules.
+            if hasattr(react_agent, 'set_experience_pool_task_ids'):
+                react_agent.set_experience_pool_task_ids(training_ids)
+            print(f'FOLD {k}: evaluation={len(eval_idxs)} experience_pool_tasks={len(training_ids)}')
             if not cfg.no_rules:
                 # make sure every start of fold does create_rules
                 if not first_flag:
                     starting_idx = eval_idxs[0]
                 # create rules for each fold, if starting a new fold
                 if starting_idx == eval_idxs[0]:
-                    training_ids = set(range(num_training_tasks)) - set(eval_idxs)
                     react_agent.create_rules(
                         list(training_ids),
                         cache_fold=None,

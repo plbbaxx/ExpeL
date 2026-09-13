@@ -67,6 +67,9 @@ class ExpelAgent(ReflectAgent):
         self.cache_rules = {}
         # Side-channel audit only. It does not participate in retrieval or prompting.
         self.retrieval_trace = []
+        # ``None`` retains the official full-history behavior during gathering.
+        # Evaluation sets this to the current fold's out-of-fold task IDs.
+        self.experience_pool_task_ids = None
         self._train = True
         super().__init__(benchmark_name=benchmark_name, *args, **kwargs)
         self.idx2task = {idx: task['task'] for idx, task in enumerate(self.tasks)}
@@ -81,6 +84,10 @@ class ExpelAgent(ReflectAgent):
 
     def eval(self) -> None:
         self._train = False
+
+    def set_experience_pool_task_ids(self, task_ids: List[int]) -> None:
+        """Restrict recalled gathered trajectories to an evaluation fold's training IDs."""
+        self.experience_pool_task_ids = set(task_ids)
 
     def next_task(self) -> bool:
         # storing reflections
@@ -423,6 +430,11 @@ class ExpelAgent(ReflectAgent):
         self.keys2task = {'thought': {}, 'task': {}, 'step': {}, 'reflection': {}, 'action': {}}
         self.docs = []
         combined_history = dict(self.succeeded_trial_history)
+        if self.experience_pool_task_ids is not None:
+            combined_history = {
+                task: trials for task, trials in combined_history.items()
+                if self.task2idx.get(task) in self.experience_pool_task_ids
+            }
         if isinstance(self.all_fewshots, list):
             for fewshot in self.all_fewshots:
                 if self.benchmark_name in ['hotpotqa', 'fever']:
