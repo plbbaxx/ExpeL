@@ -252,7 +252,13 @@ class ReactAgent(BaseAgent):
 
         return new_prompt_history
 
-    def update_dynamic_prompt_components(self):
+    def update_dynamic_prompt_components(self, reset: bool = False):
+        """Restore the static prompt components when a task is reset.
+
+        ReAct has no retrieved/dynamic prompt state to clear.  Its reset path
+        therefore uses the same few-shot and instruction refresh as a normal
+        call, while accepting the base API used by ``ExpeLAgent``.
+        """
         #####################
         # Updating fewshots #
         #####################
