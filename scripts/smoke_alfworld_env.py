@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 import yaml
 from omegaconf import OmegaConf
-import alfworld.agents.environment
+from alfworld.agents.environment import get_environment
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -15,7 +15,9 @@ def main() -> int:
     gamefile = tasks[0]['gamefile']
     if not Path(gamefile).exists():
         raise FileNotFoundError(f'ALFWorld game file is missing: {gamefile}; ALFWORLD_DATA={os.environ.get("ALFWORLD_DATA")}')
-    env_cls = getattr(alfworld.agents.environment, cfg.env.type)
+    # ALFWorld exposes environment implementations through this registry.
+    # ``AlfredTWEnv`` is not guaranteed to be re-exported from the package.
+    env_cls = get_environment(cfg.env.type)
     main_env = env_cls(cfg, train_eval=cfg.split); main_env.game_files = [gamefile]
     env = main_env.init_env(batch_size=1); observations, infos = env.reset()
     initial = observations[0]; steps = []
