@@ -65,6 +65,8 @@ class ExpelAgent(ReflectAgent):
         self.rule_items = []
         self.rule_items_with_count = []
         self.cache_rules = {}
+        # Side-channel audit only. It does not participate in retrieval or prompting.
+        self.retrieval_trace = []
         self._train = True
         super().__init__(benchmark_name=benchmark_name, *args, **kwargs)
         self.idx2task = {idx: task['task'] for idx, task in enumerate(self.tasks)}
@@ -534,6 +536,7 @@ class ExpelAgent(ReflectAgent):
             if self.fewshot_strategy == 'random':
                 random.shuffle(fewshot_docs)
             fewshots = []
+            retrieved_records = []
             current_tasks = set()
             def fewshot_doc_token_count(fewshot_doc):
                 return self.token_counter(self.combined_history[fewshot_doc.metadata['task']][0].trajectory)
@@ -563,9 +566,28 @@ class ExpelAgent(ReflectAgent):
                     continue
                 fewshots.append(self.combined_history[fewshot_doc.metadata['task']][idx].task + '\n' + shortest_fewshot)
 
+                query_embedding = self.embedder.embed_query(queries[query_type])
+                document_embedding = self.embedder.embed_query(fewshot_doc.page_content)
+                retrieved_records.append({
+                    'rank': len(fewshots),
+                    'query_type': query_type,
+                    'query_text': queries[query_type],
+                    'experience_task': fewshot_doc.metadata['task'],
+                    'experience_text': shortest_fewshot,
+                    'cosine_similarity': float(1.0 - cosine(query_embedding, document_embedding)),
+                })
+
                 current_tasks.add(fewshot_doc.metadata['task'])
                 if len(fewshots) == self.num_fewshots:
                     break
+
+            self.retrieval_trace.append({
+                'current_task': self.task,
+                'environment': self.env.env_name,
+                'step': self.curr_step,
+                'strategy': self.fewshot_strategy,
+                'selected': retrieved_records,
+            })
 
             return fewshots
 

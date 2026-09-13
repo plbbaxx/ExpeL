@@ -37,7 +37,7 @@ from memory import (
     RETRIEVERS,
 )
 from models import LLM_CLS
-from utils import get_fewshot_max_tokens, load_trajectories_log, save_trajectories_log, split_logs_by_task, plot_trial_stats, alfworld_results_per_env_name_log, get_webshop_mean_score, get_split_eval_idx_list
+from utils import get_fewshot_max_tokens, load_trajectories_log, save_trajectories_log, split_logs_by_task, plot_trial_stats, alfworld_results_per_env_name_log, get_webshop_mean_score, get_split_eval_idx_list, seed_everything
 
 
 def get_eval_num(eval_idx: int, eval_idx_list: List[List[int]]) -> int:
@@ -51,6 +51,7 @@ def get_eval_num(eval_idx: int, eval_idx_list: List[List[int]]) -> int:
 
 @hydra.main(version_base=None, config_path="configs", config_name="eval")
 def main(cfg : DictConfig) -> None:
+    seed_everything(int(os.environ.get('EXPEL_SEED', '42')))
     if cfg.testing:
         openai_api_key = 'NO_KEY_FOR_TESTING'
     else:

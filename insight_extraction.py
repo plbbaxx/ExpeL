@@ -35,7 +35,7 @@ from memory import (
     RETRIEVERS,
 )
 from models import LLM_CLS
-from utils import save_trajectories_log, load_trajectories_log, shuffled_chunks, get_split_eval_idx_list
+from utils import save_trajectories_log, load_trajectories_log, shuffled_chunks, get_split_eval_idx_list, seed_everything
 from agent.reflect import Count
 
 from dotenv import load_dotenv
@@ -44,6 +44,7 @@ load_dotenv()
 
 @hydra.main(version_base=None, config_path="configs", config_name="insight_extraction")
 def main(cfg : DictConfig) -> None:
+    seed_everything(int(os.environ.get('EXPEL_SEED', str(cfg.seed))))
     if cfg.testing:
         openai_api_key = 'NO_KEY_FOR_TESTING'
     else:

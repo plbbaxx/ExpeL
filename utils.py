@@ -14,6 +14,22 @@ import math
 import pickle
 import re
 
+def seed_everything(seed: int) -> None:
+    """Set process-level RNGs without changing any ExpeL sampling policy."""
+    random.seed(seed)
+    try:
+        import numpy as np
+        np.random.seed(seed)
+    except ImportError:
+        pass
+    try:
+        import torch
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+    except ImportError:
+        pass
+
 
 ENV_NAMES = [
             'pick_and_place',

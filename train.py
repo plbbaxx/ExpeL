@@ -36,11 +36,12 @@ from memory import (
     RETRIEVERS,
 )
 from models import LLM_CLS
-from utils import save_trajectories_log, load_trajectories_log, plot_trial_stats, split_logs_by_task, alfworld_results_per_env_name, get_webshop_mean_scores, get_fewshot_max_tokens
+from utils import save_trajectories_log, load_trajectories_log, plot_trial_stats, split_logs_by_task, alfworld_results_per_env_name, get_webshop_mean_scores, get_fewshot_max_tokens, seed_everything
 from agent.reflect import Count
 
 @hydra.main(version_base=None, config_path="configs", config_name="train")
 def main(cfg : DictConfig) -> None:
+    seed_everything(int(os.environ.get('EXPEL_SEED', '42')))
     if cfg.testing:
         openai_api_key = 'NO_KEY_FOR_TESTING'
     else:
