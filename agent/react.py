@@ -196,6 +196,10 @@ class ReactAgent(BaseAgent):
     def insert_after_task_prompt(self) -> None:
         return
 
+    def after_step(self, *args, **kwargs) -> None:
+        """ReAct has no post-step state update beyond prompt bookkeeping."""
+        return
+
     def job_not_done(self) -> bool:
         return self.task_idx < len(self.tasks)
 
