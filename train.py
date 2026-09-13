@@ -1,4 +1,5 @@
 import getpass
+import json
 import hydra
 from omegaconf import DictConfig
 from pathlib import Path
@@ -138,6 +139,10 @@ You are using the following language model: {react_agent.llm.model_name}
         react_agent.update_stats()
         log += prefix + react_agent.log_history() + '\n\n'
         true_log += prefix + react_agent.log_history(include_all=True) + '\n\n'
+        if cfg.benchmark.name == 'alfworld':
+            # Audit only: capture ALFWorld's own admissible-command verdicts
+            # without exposing them to the agent or changing its trajectory.
+            react_agent.action_audits[str(react_agent.task_idx)] = deepcopy(react_agent.env.action_trace)
 
         # next task
         react_agent.next_task()
@@ -174,6 +179,10 @@ You are using the following language model: {react_agent.llm.model_name}
     log += f'\n\n{results}\n#######################################'
     true_log += f'\n\n{results}\n#######################################'
     print(results)
+
+    if cfg.benchmark.name == 'alfworld' and hasattr(react_agent, 'action_audits'):
+        audit_path = LOG_PATH / f'{cfg.run_name}_action_audit.json'
+        audit_path.write_text(json.dumps(react_agent.action_audits, indent=2) + '\n', encoding='utf-8')
 
     save_trajectories_log(
         LOG_PATH, log, dicts, true_log,

@@ -61,6 +61,9 @@ class ReactAgent(BaseAgent):
         # ReAct does not perform reflection, but BaseAgent.log_history()
         # shares the reflection-aware logging interface with its subclasses.
         self.reflections = []
+        # Diagnostic-only ALFWorld action traces, keyed by task index.  They
+        # are intentionally outside the prompt and never affect action choice.
+        self.action_audits = {}
 
         self.env = env(**self.tasks[self.task_idx]['env_kwargs'], max_steps=self.max_steps)
         self.env.reset()

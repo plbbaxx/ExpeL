@@ -31,7 +31,8 @@ class AlfworldEnv(BaseEnv):
         self.reward = False
         self.is_exhausted = False
         self.env = self.main_env.init_env(batch_size=1)
-        self.env.reset()
+        _, infos = self.env.reset()
+        self.admissible_actions = list(infos.get('admissible_commands', [[]])[0])
         self.last_action = None
         # Kept as a per-task audit trail.  It records the exact model action
         # and the canonical action delivered to ALFWorld without changing the
@@ -49,14 +50,17 @@ class AlfworldEnv(BaseEnv):
             if match is not None:
                 action = 'put ' + match.group(1) + ' in/on ' + match.group(2)
         
-        observation, reward, _ = self.alfworld_run(action)
+        admissible_before_step = action in self.admissible_actions
+        observation, reward, _, info = self.alfworld_run(action)
         self.action_trace.append({
             'step': self.curr_step,
             'raw_action': raw_action,
             'env_action': action,
+            'admissible_before_step': admissible_before_step,
             'observation': observation,
             'reward': bool(reward),
         })
+        self.admissible_actions = list(info.get('admissible_commands', [[]])[0])
         observation = observation.replace(' In it, you see nothing.', '').replace(', you see nothing', '')
         if self.last_action == action:
             self.truncated = True
@@ -86,7 +90,7 @@ class AlfworldEnv(BaseEnv):
         observation, reward, done, info = self.env.step([action])
         observation, reward, done = process_observation(observation[0]), info['won'][0], done[0]
 
-        return observation, reward, done
+        return observation, reward, done, info
 
 def process_observation(obs):
     if obs.startswith('You arrive at loc '):
