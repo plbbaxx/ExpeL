@@ -371,8 +371,10 @@ def plot_trial_stats(parsed_result: List[List[str]], benchmark: str, max_trials:
             results[key] = results.get(key, []) + [value]
 
     if benchmark == 'alfworld':
-        assert len(parsed_result) == 134
-        results = {k: [round(x / 134 * 100, 2) for x in v] for k, v in results.items()}
+        task_count = len(parsed_result)
+        if task_count == 0:
+            raise ValueError('Cannot summarize an empty ALFWorld run')
+        results = {k: [round(x / task_count * 100, 2) for x in v] for k, v in results.items()}
     else:
         assert len(parsed_result) == 100
 

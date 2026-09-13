@@ -1,6 +1,7 @@
 from typing import List, Callable, Tuple, Dict, Any, Union
 from functools import partial
 from copy import deepcopy
+import os
 
 from langchain.prompts import PromptTemplate
 from langchain.schema import ChatMessage
@@ -53,6 +54,10 @@ class ReactAgent(BaseAgent):
         self.llm_parser = llm_parser
         self.observation_formatter = observation_formatter
         self._last_observation_history = None
+        # The original completion-style GPT path stores parsed output as a
+        # human message.  OpenAI-compatible Qwen chat serving requires the
+        # generated turn to remain an assistant message for the next turn.
+        self.output_as_ai_message = os.environ.get('EXPEL_OUTPUT_AS_AI_MESSAGE', '').lower() in {'1', 'true', 'yes'}
         # ReAct does not perform reflection, but BaseAgent.log_history()
         # shares the reflection-aware logging interface with its subclasses.
         self.reflections = []
@@ -92,7 +97,8 @@ class ReactAgent(BaseAgent):
             self.step()
 
     def step(self) -> None:
-        message, message_type, others = self.llm_parser(self.prompt_agent(), self.curr_step, False)
+        message, message_type, others = self.llm_parser(
+            self.prompt_agent(), self.curr_step, self.output_as_ai_message)
         self.prompt_history.append(message)
         self.print_message(message)
 
@@ -100,7 +106,8 @@ class ReactAgent(BaseAgent):
         # loops while in thinking mode
         while message_type == 'thought':
             thought_num += 1
-            message, message_type, others = self.llm_parser(self.prompt_agent(), self.curr_step, False)
+            message, message_type, others = self.llm_parser(
+                self.prompt_agent(), self.curr_step, self.output_as_ai_message)
             self.prompt_history.append(message)
             self.print_message(message)
 

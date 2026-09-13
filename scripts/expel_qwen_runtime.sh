@@ -6,6 +6,8 @@ export EXPEL_TOP_P="${EXPEL_TOP_P:-1}"
 export EXPEL_MAX_TOKENS="${EXPEL_MAX_TOKENS:-512}"
 export EXPEL_SEED="${EXPEL_SEED:-42}"
 export EXPEL_SERVED_MODEL="${EXPEL_SERVED_MODEL:-Qwen3-4B-Instruct-2507}"
+# Preserve generated turns as assistant messages for Qwen chat templates.
+export EXPEL_OUTPUT_AS_AI_MESSAGE="${EXPEL_OUTPUT_AS_AI_MESSAGE:-true}"
 export EXPEL_EMBEDDER_PATH="${EXPEL_EMBEDDER_PATH:-/mnt/disk2/caoxue/models/all-mpnet-base-v2}"
 export NO_PROXY="127.0.0.1,localhost${NO_PROXY:+,$NO_PROXY}"
 export no_proxy="127.0.0.1,localhost${no_proxy:+,$no_proxy}"
