@@ -53,6 +53,9 @@ class ReactAgent(BaseAgent):
         self.llm_parser = llm_parser
         self.observation_formatter = observation_formatter
         self._last_observation_history = None
+        # ReAct does not perform reflection, but BaseAgent.log_history()
+        # shares the reflection-aware logging interface with its subclasses.
+        self.reflections = []
 
         self.env = env(**self.tasks[self.task_idx]['env_kwargs'], max_steps=self.max_steps)
         self.env.reset()
@@ -196,9 +199,17 @@ class ReactAgent(BaseAgent):
     def insert_after_task_prompt(self) -> None:
         return
 
+    def insert_before_task_prompt(self) -> None:
+        """Vanilla ReAct has no reflection/manual block to prepend."""
+        return
+
     def after_step(self, *args, **kwargs) -> None:
         """ReAct has no post-step state update beyond prompt bookkeeping."""
         return
+
+    def format_reflections(self, reflections, include_prefix: bool = False) -> str:
+        """Supply the empty reflection block expected by shared log formatting."""
+        return ''
 
     def job_not_done(self) -> bool:
         return self.task_idx < len(self.tasks)
