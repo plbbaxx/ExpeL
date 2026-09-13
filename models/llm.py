@@ -1,7 +1,6 @@
 from typing import Callable, List
 import json
 import os
-import re
 import time
 
 from langchain.chat_models import ChatOpenAI
