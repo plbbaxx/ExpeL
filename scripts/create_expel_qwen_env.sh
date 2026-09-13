@@ -8,5 +8,7 @@ source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate "$ENV_NAME"
 python -m pip install --upgrade 'pip<25'
 python -m pip install -r requirements.txt
+python -m pip install 'numpy<2' 'faiss-cpu==1.7.4'
 python -m pip install 'alfworld[full]'
+python -m pip check
 python scripts/write_environment_audit.py --output artifacts/expel_qwen3_4b/environment_audit.txt
