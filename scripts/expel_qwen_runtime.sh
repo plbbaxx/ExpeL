@@ -5,10 +5,14 @@ export EXPEL_TEMPERATURE="${EXPEL_TEMPERATURE:-0}"
 export EXPEL_TOP_P="${EXPEL_TOP_P:-1}"
 export EXPEL_MAX_TOKENS="${EXPEL_MAX_TOKENS:-512}"
 export EXPEL_SEED="${EXPEL_SEED:-42}"
-export EXPEL_TOKENIZER_PATH="${EXPEL_TOKENIZER_PATH:-/mnt/disk2/caoxue/models/Qwen3-4B-Instruct-2507}"
+export EXPEL_SERVED_MODEL="${EXPEL_SERVED_MODEL:-Qwen3-4B-Instruct-2507}"
 export EXPEL_EMBEDDER_PATH="${EXPEL_EMBEDDER_PATH:-/mnt/disk2/caoxue/models/all-mpnet-base-v2}"
 export NO_PROXY="127.0.0.1,localhost${NO_PROXY:+,$NO_PROXY}"
 export no_proxy="127.0.0.1,localhost${no_proxy:+,$no_proxy}"
 test -d "$EXPEL_EMBEDDER_PATH" || { echo "Missing local official embedder: $EXPEL_EMBEDDER_PATH"; return 1 2>/dev/null || exit 1; }
-test -f "$EXPEL_TOKENIZER_PATH/tokenizer.json" || { echo "Missing local Qwen tokenizer.json: $EXPEL_TOKENIZER_PATH"; return 1 2>/dev/null || exit 1; }
 curl --fail --silent --show-error "$EXPEL_OPENAI_API_BASE/models" >/dev/null || { echo "Qwen server is not healthy: $EXPEL_OPENAI_API_BASE"; return 1 2>/dev/null || exit 1; }
+TOKENIZE_BASE="${EXPEL_OPENAI_API_BASE%/v1}"
+curl --fail --silent --show-error -X POST "$TOKENIZE_BASE/tokenize" \
+  -H 'Content-Type: application/json' \
+  -d "{\"model\":\"$EXPEL_SERVED_MODEL\",\"prompt\":\"tokenizer health check\",\"add_special_tokens\":false}" >/dev/null \
+  || { echo "vLLM tokenizer endpoint is not healthy: $TOKENIZE_BASE/tokenize"; return 1 2>/dev/null || exit 1; }

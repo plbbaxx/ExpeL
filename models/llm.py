@@ -1,28 +1,49 @@
 from typing import Callable, List
-from functools import lru_cache
 import json
 import os
 import time
+from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import ChatMessage
 import openai
 
 
-@lru_cache(maxsize=2)
-def load_local_tokenizer(model_path: str):
-    """Load only local tokenizer files; never load the Qwen model weights."""
-    if not model_path or not os.path.isdir(model_path):
-        raise FileNotFoundError(f'EXPEL_TOKENIZER_PATH must be a local model directory: {model_path}')
-    try:
-        from transformers import AutoTokenizer
-        return AutoTokenizer.from_pretrained(model_path, local_files_only=True, trust_remote_code=True)
-    except Exception as auto_error:
-        tokenizer_json = os.path.join(model_path, 'tokenizer.json')
-        if not os.path.isfile(tokenizer_json):
-            raise RuntimeError(f'Unable to load local tokenizer from {model_path}') from auto_error
-        from tokenizers import Tokenizer
-        return Tokenizer.from_file(tokenizer_json)
+class VLLMTokenizer:
+    """Use the serving vLLM process as the tokenizer authority for Qwen.
+
+    The official ExpeL environment pins an older Transformers release which
+    cannot deserialize Qwen3's tokenizer.json.  vLLM has already loaded the
+    same local Qwen checkpoint for generation, so its supported /tokenize API
+    provides exact token IDs without loading a second model or changing the
+    environment.
+    """
+    def __init__(self, api_base: str, model_name: str):
+        if not api_base:
+            raise ValueError('EXPEL_OPENAI_API_BASE is required for a non-GPT tokenizer')
+        self.endpoint = api_base.rstrip('/')
+        if self.endpoint.endswith('/v1'):
+            self.endpoint = self.endpoint[:-3]
+        self.endpoint += '/tokenize'
+        self.model_name = model_name
+
+    def encode(self, text: str, add_special_tokens: bool = False):
+        payload = json.dumps({
+            'model': self.model_name,
+            'prompt': text,
+            'add_special_tokens': add_special_tokens,
+        }).encode('utf-8')
+        request = Request(self.endpoint, data=payload, headers={'Content-Type': 'application/json'})
+        try:
+            with urlopen(request, timeout=15) as response:
+                decoded = json.loads(response.read().decode('utf-8'))
+        except (URLError, TimeoutError) as error:
+            raise RuntimeError(f'vLLM tokenizer endpoint failed: {self.endpoint}') from error
+        tokens = decoded.get('tokens')
+        if not isinstance(tokens, list):
+            raise RuntimeError(f'Unexpected vLLM tokenizer response: {decoded}')
+        return tokens
 
 
 class GPTWrapper:
@@ -46,7 +67,7 @@ class GPTWrapper:
         )
         self.tokenizer = None
         if 'gpt' not in llm_name.lower():
-            self.tokenizer = load_local_tokenizer(os.environ.get('EXPEL_TOKENIZER_PATH', ''))
+            self.tokenizer = VLLMTokenizer(api_base, llm_name)
         self.usage_log = os.environ.get('EXPEL_LLM_USAGE_LOG')
 
     def __call__(self, messages: List[ChatMessage], stop: List[str] = [], replace_newline: bool = True) -> str:
