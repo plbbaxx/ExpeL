@@ -4,7 +4,7 @@ from copy import deepcopy
 import os
 
 from langchain.prompts import PromptTemplate
-from langchain.schema import ChatMessage
+from langchain.schema import ChatMessage, HumanMessage
 from openai.error import InvalidRequestError
 
 from envs import BaseEnv
@@ -105,6 +105,16 @@ class ReactAgent(BaseAgent):
         thought_num = 1
         # loops while in thinking mode
         while message_type == 'thought':
+            # ALFWorld's official ReAct demonstrations acknowledge a thought
+            # with an environment-side ``OK.`` before the next action.  The
+            # original completion path encoded model output as a human turn,
+            # which accidentally supplied this turn boundary.  With Qwen we
+            # correctly retain model output as an assistant turn, so add the
+            # same neutral environment acknowledgement explicitly.
+            if self.benchmark_name == 'alfworld' and self.output_as_ai_message:
+                acknowledgement = HumanMessage(content='OK.')
+                self.prompt_history.append(acknowledgement)
+                self.print_message(acknowledgement)
             thought_num += 1
             message, message_type, others = self.llm_parser(
                 self.prompt_agent(), self.curr_step, self.output_as_ai_message)

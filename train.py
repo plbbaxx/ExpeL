@@ -162,8 +162,13 @@ You are using the following language model: {react_agent.llm.model_name}
     reflection_results = plot_trial_stats(parsed_result=parsed_result, benchmark=cfg.benchmark.name, max_trials=cfg.agent.max_reflection_depth + 1, save_path=f"{LOG_PATH}/{cfg.run_name}_logs_stats.png")
 
     results = ', '.join([f"{k}: {v}" for k, v in reflection_results.items()]) + '\n'
-    if cfg.benchmark.name == 'alfworld':
+    if cfg.benchmark.name == 'alfworld' and hasattr(react_agent, 'succeeded_trial_history'):
         results += str(alfworld_results_per_env_name(dicts[-1]))
+    elif cfg.benchmark.name == 'alfworld':
+        # Per-environment success bookkeeping belongs to ExpeL's reflective
+        # agent.  Vanilla ReAct has no experience-pool histories, but its
+        # overall smoke/pilot summary above remains valid and must be saved.
+        results += 'per_environment_results: unavailable_for_vanilla_react\n'
     elif cfg.benchmark.name == 'webshop':
         results += str(get_webshop_mean_scores(log, len(react_agent.tasks), cfg.agent.max_reflection_depth + 1))
     log += f'\n\n{results}\n#######################################'

@@ -33,15 +33,30 @@ class AlfworldEnv(BaseEnv):
         self.env = self.main_env.init_env(batch_size=1)
         self.env.reset()
         self.last_action = None
+        # Kept as a per-task audit trail.  It records the exact model action
+        # and the canonical action delivered to ALFWorld without changing the
+        # task or action protocol.
+        self.action_trace = []
 
     def step(self, action: str) -> Tuple[str, bool, bool, bool, int]:
+        raw_action = action
         if action.startswith('put'):
-            pattern = r'put (\w+\s*\d+) (?:in|on) (\w+\s*\d+)'
-            match = re.match(pattern, action)
+            # ALFWorld has one canonical placement command.  Qwen may emit
+            # ``in``, ``on``, or the official literal ``in/on``; normalize all
+            # three forms before dispatching and preserve both in action_trace.
+            pattern = r'put (\w+\s*\d+) (?:in/on|in|on) (\w+\s*\d+)'
+            match = re.fullmatch(pattern, action.strip())
             if match is not None:
                 action = 'put ' + match.group(1) + ' in/on ' + match.group(2)
         
         observation, reward, _ = self.alfworld_run(action)
+        self.action_trace.append({
+            'step': self.curr_step,
+            'raw_action': raw_action,
+            'env_action': action,
+            'observation': observation,
+            'reward': bool(reward),
+        })
         observation = observation.replace(' In it, you see nothing.', '').replace(', you see nothing', '')
         if self.last_action == action:
             self.truncated = True
