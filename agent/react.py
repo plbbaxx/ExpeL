@@ -73,6 +73,9 @@ class ReactAgent(BaseAgent):
         self.print_message = partial(print_message, testing=testing)
 
         self.success, self.fail, self.halted = 0, 0, 0
+        # One immutable outcome per completed task.  This is the source of
+        # truth for vanilla-ReAct experiment summaries and resume checkpoints.
+        self.task_outcomes = []
 
         self.llm = llm_builder(llm_name=llm, openai_api_key=openai_api_key, long_ver=False)
         self.long_context_llm = llm_builder(llm_name=llm, openai_api_key=openai_api_key, long_ver=True)
@@ -247,17 +250,36 @@ class ReactAgent(BaseAgent):
         self.success = 0
         self.fail = 0
         self.halted = 0
+        self.task_outcomes = []
 
     def update_stats(self) -> None:
-        if not self.is_success() and self.is_truncated():
-            self.halted += 1
+        if self.is_success():
+            outcome = 'success'
+        elif self.is_truncated():
+            outcome = 'halted'
         else:
-            if self.reward:
-                self.success += 1
-            else:
-                self.fail += 1
+            outcome = 'fail'
+
+        if any(record['task_idx'] == self.task_idx for record in self.task_outcomes):
+            raise RuntimeError(f'Duplicate terminal outcome for task {self.task_idx}')
+        self.task_outcomes.append({
+            'task_idx': self.task_idx,
+            'task': self.remove_task_suffix(self.task),
+            'outcome': outcome,
+            'environment_success': bool(self.is_success()),
+            'environment_truncated': bool(self.env.is_truncated()),
+        })
+        self.success = sum(record['outcome'] == 'success' for record in self.task_outcomes)
+        self.fail = sum(record['outcome'] == 'fail' for record in self.task_outcomes)
+        self.halted = sum(record['outcome'] == 'halted' for record in self.task_outcomes)
     
     def get_stats(self) -> Tuple[int, int, int]:
+        if self.task_outcomes:
+            return (
+                sum(record['outcome'] == 'success' for record in self.task_outcomes),
+                sum(record['outcome'] == 'fail' for record in self.task_outcomes),
+                sum(record['outcome'] == 'halted' for record in self.task_outcomes),
+            )
         return self.success, self.fail, self.halted
 
     def collapse_prompts(self, prompt_history: List[ChatMessage]) -> List[ChatMessage]:

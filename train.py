@@ -163,8 +163,19 @@ You are using the following language model: {react_agent.llm.model_name}
     true_log += f"########################################\nEND TRIAL\nTrial summary: Success: {success}/{success + fail + halted}, Fail: {fail}/{success + fail + halted}, Halted: {halted}/{success + fail + halted}"
     print(f'Finished. Success: {success}, Fail: {fail}, Halted: {halted}')
 
-    parsed_result = split_logs_by_task(text=log, num_tasks=len(react_agent.tasks))
-    reflection_results = plot_trial_stats(parsed_result=parsed_result, benchmark=cfg.benchmark.name, max_trials=cfg.agent.max_reflection_depth + 1, save_path=f"{LOG_PATH}/{cfg.run_name}_logs_stats.png")
+    if cfg.agent_type in ['reflection', 'expel']:
+        parsed_result = split_logs_by_task(text=log, num_tasks=len(react_agent.tasks))
+        reflection_results = plot_trial_stats(parsed_result=parsed_result, benchmark=cfg.benchmark.name, max_trials=cfg.agent.max_reflection_depth + 1, save_path=f"{LOG_PATH}/{cfg.run_name}_logs_stats.png")
+    else:
+        # Vanilla React has one terminal outcome per task, rather than
+        # reflection trials.  Do not parse free-form text into an inaccurate
+        # reflection chart; report the recorded terminal outcomes instead.
+        total = success + fail + halted
+        reflection_results = {
+            'success_rate': round(success / total, 6) if total else 0.0,
+            'fail_rate': round(fail / total, 6) if total else 0.0,
+            'halted_rate': round(halted / total, 6) if total else 0.0,
+        }
 
     results = ', '.join([f"{k}: {v}" for k, v in reflection_results.items()]) + '\n'
     if cfg.benchmark.name == 'alfworld' and hasattr(react_agent, 'succeeded_trial_history'):
@@ -183,6 +194,23 @@ You are using the following language model: {react_agent.llm.model_name}
     if cfg.benchmark.name == 'alfworld' and hasattr(react_agent, 'action_audits'):
         audit_path = LOG_PATH / f'{cfg.run_name}_action_audit.json'
         audit_path.write_text(json.dumps(react_agent.action_audits, indent=2) + '\n', encoding='utf-8')
+
+    if hasattr(react_agent, 'task_outcomes'):
+        total = success + fail + halted
+        if total != len(react_agent.tasks):
+            raise RuntimeError(
+                f'Incomplete terminal accounting: outcomes={total}, tasks={len(react_agent.tasks)}')
+        summary_path = LOG_PATH / f'{cfg.run_name}_run_summary.json'
+        summary_path.write_text(json.dumps({
+            'run_name': cfg.run_name,
+            'agent_type': cfg.agent_type,
+            'total_tasks': total,
+            'success': success,
+            'fail': fail,
+            'halted': halted,
+            'success_rate': success / total if total else 0.0,
+            'task_outcomes': react_agent.task_outcomes,
+        }, indent=2) + '\n', encoding='utf-8')
 
     save_trajectories_log(
         LOG_PATH, log, dicts, true_log,
