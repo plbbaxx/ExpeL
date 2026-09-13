@@ -1,0 +1,7 @@
+defaults:
+  - expel
+  - _self_
+
+llm: Qwen3-4B-Instruct-2507
+retrieval_kwargs:
+  embedder_path: ${oc.env:EXPEL_EMBEDDER_PATH,/mnt/disk2/caoxue/models/all-mpnet-base-v2}

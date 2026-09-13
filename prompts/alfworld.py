@@ -145,6 +145,9 @@ SYSTEM_CRITIQUE_EXISTING_RULES_INSTRUCTION = """You will be given two previous t
 SYSTEM_CRITIQUE_ALL_SUCCESS_EXISTING_RULES_INSTRUCTION = """You will be given successful tasks trials in which you were placed in a household environment and tasks to complete."""
 
 def LLM_PARSER(llm_output, step: int, ai_message: bool) -> Tuple[ChatMessage, str, Dict[str, Any]]:
+    # Compatibility only: Qwen deployments may expose hidden reasoning tags.
+    # The official ExpeL prompt and action grammar remain unchanged.
+    llm_output = re.sub(r'(?is)<think>.*?</think>', '', llm_output).strip()
     think_pattern =r'(?i)(?:>|)\s*think(?::|)'
     match = re.match(think_pattern, llm_output)
     if match:

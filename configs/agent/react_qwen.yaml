@@ -1,0 +1,7 @@
+defaults:
+  - expel_qwen
+  - _self_
+
+name: react
+fewshot_strategy: none
+max_reflection_depth: 0
