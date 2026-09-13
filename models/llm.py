@@ -1,4 +1,5 @@
 from typing import Callable, List
+from functools import lru_cache
 import json
 import os
 import time
@@ -6,6 +7,22 @@ import time
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import ChatMessage
 import openai
+
+
+@lru_cache(maxsize=2)
+def load_local_tokenizer(model_path: str):
+    """Load only local tokenizer files; never load the Qwen model weights."""
+    if not model_path or not os.path.isdir(model_path):
+        raise FileNotFoundError(f'EXPEL_TOKENIZER_PATH must be a local model directory: {model_path}')
+    try:
+        from transformers import AutoTokenizer
+        return AutoTokenizer.from_pretrained(model_path, local_files_only=True, trust_remote_code=True)
+    except Exception as auto_error:
+        tokenizer_json = os.path.join(model_path, 'tokenizer.json')
+        if not os.path.isfile(tokenizer_json):
+            raise RuntimeError(f'Unable to load local tokenizer from {model_path}') from auto_error
+        from tokenizers import Tokenizer
+        return Tokenizer.from_file(tokenizer_json)
 
 
 class GPTWrapper:
@@ -27,6 +44,9 @@ class GPTWrapper:
             openai_api_base=api_base,
             model_kwargs={'seed': seed},
         )
+        self.tokenizer = None
+        if 'gpt' not in llm_name.lower():
+            self.tokenizer = load_local_tokenizer(os.environ.get('EXPEL_TOKENIZER_PATH', ''))
         self.usage_log = os.environ.get('EXPEL_LLM_USAGE_LOG')
 
     def __call__(self, messages: List[ChatMessage], stop: List[str] = [], replace_newline: bool = True) -> str:

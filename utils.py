@@ -125,10 +125,21 @@ def token_counter(text: str, llm: str = 'gpt-3.5-turbo', tokenizer: Callable = N
         llm: The language model name.
         tokenizer: The tokenizer to be used.
     """
+    if tokenizer is not None:
+        # Hugging Face tokenizers return token IDs directly, whereas the
+        # lightweight ``tokenizers`` fallback returns an Encoding object.
+        try:
+            token_ids = tokenizer.encode(text, add_special_tokens=False)
+        except TypeError:
+            token_ids = tokenizer.encode(text).ids
+        if hasattr(token_ids, 'ids'):
+            token_ids = token_ids.ids
+        return len(token_ids)
+
     if 'gpt' in llm:
         return len(tiktoken.encoding_for_model(llm).encode(text))
 
-    raise NotImplementedError
+    raise ValueError(f'No tokenizer configured for non-GPT model: {llm}')
 
 def print_message(message: ChatMessage, token_counter: Callable = None, testing: bool = True, extra_text: str = '') -> None:
     """
